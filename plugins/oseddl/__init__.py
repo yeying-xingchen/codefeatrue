@@ -2,6 +2,7 @@ import requests
 import yaml
 
 # 常量定义
+TOKEN = None
 HELP_MESSAGE = """Oseddl 功能使用帮助
 /oseddl activities 查看活动列表
 /oseddl competitions 查看比赛列表
@@ -34,7 +35,12 @@ def on_command(info: dict):
     
     # 获取数据
     try:
-        resp = requests.get(f"{BASE_URL}/{main_command}.yml", timeout=10)
+        resp = None
+        if TOKEN:
+            headers = {"Authorization": "Bearer "+TOKEN}
+            resp = requests.get(f"{BASE_URL}/{main_command}.yml", timeout=15, headers=headers)
+        else:
+            resp = requests.get(f"{BASE_URL}/{main_command}.yml", timeout=15)
         resp.raise_for_status()
         resp_info = yaml.safe_load(resp.text)
         
