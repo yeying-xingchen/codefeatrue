@@ -1,7 +1,9 @@
 [ main ]
 plugins = [ "oseddl" ]
 
-[ other ]
 # 供插件使用的配置
-[[ oseddl ]]
+[ oseddl ]
 oseddl_github_token = ""
+oseddl_base_url = "https://gitee.com/YeyingXingchen/open-source-deadlines/raw/main/data"
+
+# oseddl_base_url = "https://github.com/hust-open-atom-club/open-source-deadlines/raw/refs/heads/main/data"

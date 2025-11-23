@@ -9,7 +9,7 @@ HELP_MESSAGE = """Oseddl 功能使用帮助
 /oseddl competitions 查看比赛列表
 /oseddl conferences 查看会议列表
 """
-BASE_URL = "https://github.com/hust-open-atom-club/open-source-deadlines/raw/refs/heads/main/data"
+BASE_URL = config.get("oseddl", "oseddl_base_url")
 VALID_COMMANDS = {"activities", "competitions", "conferences"}
 
 def on_command(info: dict):
