@@ -3,7 +3,6 @@
 from urllib.parse import urlparse
 import json
 import requests
-from urllib.parse import urlparse
 
 
 def on_command(message_type: str, info: dict):
