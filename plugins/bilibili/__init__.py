@@ -14,6 +14,7 @@ def on_command(message_type: str, info: dict):
     :param info: 信息
     :type info: dict
     """
+
     if message_type == "json":
         try:
             card_info = json.loads(str(info["message"][0]["data"]["data"]))
@@ -26,19 +27,18 @@ def on_command(message_type: str, info: dict):
                     return {}
 
                 resp = requests.get(qqdocurl, timeout=15)
-                resp.raise_for_status()
 
                 parsed_url = urlparse(resp.url)
                 bv = parsed_url.path.strip("/").replace("video", "")
+                bv = bv.replace("/", "")
                 url = f"{parsed_url.netloc}{parsed_url.path}"
-
                 message = f"""检测到Bilibili分享卡片！
 视频标题：{detail.get("desc", "未知")}
 BV号：{bv}
 视频链接：{url}
 分享人：{detail.get("host", {}).get("uin", "未知")}"""
                 return {"reply": message}
-        except (KeyError, json.JSONDecodeError, requests.RequestException):
-            pass
+        except (KeyError, json.JSONDecodeError) as e:
+            return {"reply": "error:" + str(e)}
 
     return {}
