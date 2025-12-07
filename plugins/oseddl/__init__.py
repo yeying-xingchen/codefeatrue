@@ -1,5 +1,6 @@
 """Oseddl 数据查询插件"""
 
+from datetime import datetime
 import requests
 import yaml
 import config
@@ -36,13 +37,27 @@ def _format_list_view(data: list, command: str) -> str:
 def _format_detail_view(item: dict) -> str:
     """格式化详情视图消息。"""
     events = item.get("events", [])
-    timeline = events[0]["timeline"][0]
+    current_time = datetime.now().isoformat()
+    event = None
+    i = 0
+    for event in events[0]["timeline"]:
+        i+=1
+        if event["deadline"] < current_time:
+            event = event
+        event["index"] = i
+    timeline = event
+    for event in events[0]["timeline"]:
+        if event["index"] == timeline["index"]+1:
+            next_event = event
+        else:
+            next_event = {"deadline": timeline["deadline"]}
     return f"""标题：{item.get('title', '无')}
 介绍：{item.get('description', '无')}
-下一个事件：
-名称：{timeline.get('comment', '无')}
-时间：{timeline.get('deadline', '无')}
-链接：{events[0].get('link', '无')}"""
+当前事件：
+- 名称：{timeline.get('comment', '无')}
+- 时间：{timeline.get('deadline', '无').replace("T", " ")}
+   至 {next_event.get('deadline', '无').replace("T", " ")}
+- 链接：{events[0].get('link', '无')}"""
 
 
 def on_command(message_type: str, info: dict):
