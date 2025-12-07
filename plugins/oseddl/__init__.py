@@ -58,12 +58,23 @@ def _format_detail_view(item: dict) -> str:
         current_event = timeline_list[0]
         next_event = timeline_list[1] if len(timeline_list) > 1 else None
 
-    return f"""标题：{item.get('title', '无')}
+    if events[0]["year"]:
+        return f"""标题：{item.get('title', '无')} {events[0]["year"]}
 介绍：{item.get('description', '无')}
+时间：{events[0].get('date', '无')}
 当前事件：
 - 名称：{current_event.get('comment', '无')}
 - 时间：{current_event.get('deadline', '无').replace("T", " ")}
-   至 {next_event.get('deadline', '无').replace("T", " ") if next_event else '无'}
+至 {next_event.get('deadline', '无').replace("T", " ") if next_event else '无'}
+- 链接：{events[0].get('link', '无')}"""
+    else:
+        return f"""标题：{item.get('title', '无')}
+介绍：{item.get('description', '无')}
+时间：{events[0].get('date', '无')}
+当前事件：
+- 名称：{current_event.get('comment', '无')}
+- 时间：{current_event.get('deadline', '无').replace("T", " ")}
+至 {next_event.get('deadline', '无').replace("T", " ") if next_event else '无'}
 - 链接：{events[0].get('link', '无')}"""
 
 
