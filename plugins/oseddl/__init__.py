@@ -37,26 +37,33 @@ def _format_list_view(data: list, command: str) -> str:
 def _format_detail_view(item: dict) -> str:
     """格式化详情视图消息。"""
     events = item.get("events", [])
-    current_time = datetime.now().isoformat()
-    event = None
-    i = 0
-    for event in events[0]["timeline"]:
-        i+=1
-        if event["deadline"] < current_time:
-            event = event
-        event["index"] = i
-    timeline = event
-    for event in events[0]["timeline"]:
-        if event["index"] == timeline["index"]+1:
-            next_event = event
+
+    timeline_list = events[0]["timeline"]
+    current_time = datetime.now()
+
+    # 获取当前正在进行的事件
+    current_event = None
+    next_event = None
+
+    for i, evt in enumerate(timeline_list):
+        evt_time = datetime.fromisoformat(evt["deadline"].replace("Z", "+00:00"))
+        if evt_time < current_time:
+            current_event = evt
         else:
-            next_event = {"deadline": timeline["deadline"]}
+            next_event = evt
+            break
+
+    # 如果没找到当前事件（活动已结束），则默认取第一个作为当前事件
+    if not current_event and timeline_list:
+        current_event = timeline_list[0]
+        next_event = timeline_list[1] if len(timeline_list) > 1 else None
+
     return f"""标题：{item.get('title', '无')}
 介绍：{item.get('description', '无')}
 当前事件：
-- 名称：{timeline.get('comment', '无')}
-- 时间：{timeline.get('deadline', '无').replace("T", " ")}
-   至 {next_event.get('deadline', '无').replace("T", " ")}
+- 名称：{current_event.get('comment', '无')}
+- 时间：{current_event.get('deadline', '无').replace("T", " ")}
+   至 {next_event.get('deadline', '无').replace("T", " ") if next_event else '无'}
 - 链接：{events[0].get('link', '无')}"""
 
 
