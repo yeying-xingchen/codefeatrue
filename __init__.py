@@ -60,11 +60,11 @@ def main(info: dict):
     :type info: dict
     """
     post_type = info["post_type"]
-    if post_type == "message":
+    if post_type == "message" or post_type == "message_sents":
         # 验证必要字段存在
         if not info.get("message") or not info.get("raw_message"):
             log.warning("消息数据不完整")
-            return {"error": "消息数据不完整"}            
+            return {"error": "消息数据不完整"}           
         message_type = info["message"][0].get("type", "text")
         raw_message = info["raw_message"]
         # 私聊/群 均传递
