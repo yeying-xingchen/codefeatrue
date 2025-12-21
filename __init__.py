@@ -64,11 +64,9 @@ def main(info: dict):
         # 验证必要字段存在
         if not info.get("message") or not info.get("raw_message"):
             log.warning("消息数据不完整")
-            return {"error": "消息数据不完整"}
-            
+            return {"error": "消息数据不完整"}            
         message_type = info["message"][0].get("type", "text")
         raw_message = info["raw_message"]
-        
         # 私聊/群 均传递
         if raw_message.startswith("/oseddl"):
             plugin = loaded_plugins.get("oseddl")
