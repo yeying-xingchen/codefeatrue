@@ -1,6 +1,5 @@
 """Github 信息监控插件"""
 
-
 def on_command(message_type: str, info: dict):
     """
     处理接收到的命令

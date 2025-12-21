@@ -1,5 +1,5 @@
 [ main ]
-plugins = [ "oseddl" ]
+plugins = [ "bilibili", "github" ,"oseddl", "invite" ]
 
 # 供插件使用的配置
 [ oseddl ]
