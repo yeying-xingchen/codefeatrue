@@ -6,8 +6,8 @@ import yaml
 import config
 
 __plugin_meta__  = {
-    "name": "Github 信息监控",
-    "description": "Github 信息监控",
+    "name": "Oseddl 信息获取",
+    "description": "通过机器人，查看活动信息。",
     "author": "yeying-xingchen",
     "version": "0.0.1",
     "events": ["message"]  # 添加需要订阅的事件

@@ -39,12 +39,12 @@ async def lifespan(application: FastAPI):
                 plugin = importlib.import_module("plugins." + plugin_name)
                 loaded_plugins[plugin_name] = plugin
                 plugin_meta = getattr(plugin, '__plugin_meta__', {})
-                events = plugin_meta.get('events', [])    
+                events = plugin_meta.get('events', [])
                 # 订阅事件
                 for event in events:
                     if event not in event_subscriptions:
                         event_subscriptions[event] = []
-                    event_subscriptions[event].append(plugin_name)           
+                    event_subscriptions[event].append(plugin_name)
                 log.info("插件 %s 加载成功", plugin_name)
                 # 调用插件启用函数
                 if hasattr(plugin, 'on_enable'):
@@ -80,6 +80,5 @@ def main(info: dict):
                 return_info = plugin.on_event(post_type, info)
                 if return_info:
                     return return_info
-                else:
-                    log.info("插件 %s 未处理事件 %s", plugin_name, post_type)
+                log.info("插件 %s 未处理事件 %s", plugin_name, post_type)
     return { }

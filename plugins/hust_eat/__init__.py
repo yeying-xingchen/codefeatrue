@@ -28,13 +28,9 @@ def _fetch_canteen_data() -> List[Dict]:
     url = 'http://hq.hust.edu.cn/ysfw/stfw.htm'
     headers = {'User-Agent': 'Mozilla/5.0 (HUST Canteen Plugin)'}
 
-    try:
-        resp = requests.get(url, headers=headers, timeout=10)
-        resp.raise_for_status()
-        resp.encoding = 'utf-8'
-    except Exception as e:
-        log.error(f"Failed to fetch canteen data: {e}")
-        return []
+    resp = requests.get(url, headers=headers, timeout=10)
+    resp.raise_for_status()
+    resp.encoding = 'utf-8'
 
     soup = BeautifulSoup(resp.text, 'html.parser')
     wznr = soup.select_one('.wznr')
@@ -115,16 +111,34 @@ def _parse_fragments(fragments: List[str]) -> Dict:
     return info
 
 
+class CanteenDataManager:
+    """管理食堂数据，并缓存数据，避免重复抓取"""
+    def __init__(self):
+        self._data: List[Dict] = []
+        self._last_fetch_time: float = 0.0
+
+    def _is_expired(self) -> bool:
+        return datetime.now().timestamp() - self._last_fetch_time > _CACHE_EXPIRE_SECONDS
+
+    def get_data(self) -> List[Dict]:
+        """获取食堂数据"""
+        if not self._data or self._is_expired():
+            log.info("Loading canteen data from HUST official website...")
+            self._data = _fetch_canteen_data()
+            self._last_fetch_time = datetime.now().timestamp()
+            if not self._data:
+                self._data = [
+                    {"name": "数据加载失败", "position": "请稍后再试或联系管理员"}
+                ]
+        return self._data
+
+# 实例化管理器
+_canteen_manager = CanteenDataManager()
+
 def _ensure_data_loaded():
     """确保食堂数据已加载"""
-    global _CANTEEN_DATA
-    if not _CANTEEN_DATA:
-        log.info("Loading canteen data from HUST official website...")
-        _CANTEEN_DATA = _fetch_canteen_data()
-        if not _CANTEEN_DATA:
-            _CANTEEN_DATA = [
-                {"name": "数据加载失败", "position": "请稍后再试或联系管理员"}
-            ]
+    # 使用 manager 获取数据，不再需要 global
+    _canteen_manager.get_data()
 
 
 def _parse_time(time_str: str) -> Optional[datetime.time]:
