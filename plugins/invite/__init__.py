@@ -2,6 +2,14 @@
 
 import json
 
+__plugin_meta__  = {
+    "name": "邀请信息",
+    "description": "自动通过邀请",
+    "author": "yeying-xingchen",
+    "version": "0.0.1",
+    "events": ["message"]  # 添加需要订阅的事件
+}
+
 def on_invite(info: dict):
     """
     处理接收到的入群邀请，好友申请
