@@ -4,8 +4,15 @@ from urllib.parse import urlparse
 import json
 import requests
 
+__plugin_meta__  = {
+    "name": "Github 信息监控",
+    "description": "Github 信息监控",
+    "author": "yeying-xingchen",
+    "version": "0.0.1",
+    "events": ["message"]  # 添加需要订阅的事件
+}
 
-def on_command(message_type: str, info: dict):
+def on_event(_message_type: str, info: dict):
     """
     处理接收到的命令
 
@@ -14,8 +21,7 @@ def on_command(message_type: str, info: dict):
     :param info: 信息
     :type info: dict
     """
-
-    if message_type == "json":
+    if info["message"][0]["type"] == "json":
         try:
             card_info = json.loads(str(info["message"][0]["data"]["data"]))
             meta = card_info.get("meta", {})

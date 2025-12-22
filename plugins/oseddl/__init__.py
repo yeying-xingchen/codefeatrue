@@ -5,6 +5,14 @@ import requests
 import yaml
 import config
 
+__plugin_meta__  = {
+    "name": "Github 信息监控",
+    "description": "Github 信息监控",
+    "author": "yeying-xingchen",
+    "version": "0.0.1",
+    "events": ["message"]  # 添加需要订阅的事件
+}
+
 # 常量定义
 HELP_MESSAGE = """Oseddl 功能使用帮助
 /oseddl activities 查看活动列表
@@ -78,7 +86,7 @@ def _format_detail_view(item: dict) -> str:
 - 链接：{events[0].get('link', '无')}"""
 
 
-def on_command(message_type: str, info: dict):
+def on_event(_event_type: str, info: dict):
     """
     处理 /oseddl 命令。
 
@@ -86,25 +94,26 @@ def on_command(message_type: str, info: dict):
     :param info: 包含 raw_message 的字典
     :return: 回复字典或空字典
     """
-    if message_type != "text":
-        return {}
 
     raw_message = info.get("raw_message", "").strip()
     parts = raw_message.split()
 
-    if not parts or parts[0] != "/oseddl":
-        return {"reply": "无效的命令格式"}
+    if parts[0] == "/oseddl":
+        if not parts:
+            return {"reply": "无效的命令格式"}
 
-    sub_parts = parts[1:]
+        sub_parts = parts[1:]
 
-    if not sub_parts or sub_parts[0] == "help":
-        return {"reply": HELP_MESSAGE}
+        if not sub_parts or sub_parts[0] == "help":
+            return {"reply": HELP_MESSAGE}
 
-    main_cmd = sub_parts[0]
-    if main_cmd not in VALID_COMMANDS:
-        return {"reply": f"无效的命令，请使用以下有效命令：{', '.join(VALID_COMMANDS)}"}
+        main_cmd = sub_parts[0]
+        if main_cmd not in VALID_COMMANDS:
+            return {"reply": f"无效的命令，请使用以下有效命令：{', '.join(VALID_COMMANDS)}"}
 
-    return _handle_detail_query(main_cmd, sub_parts)
+        return _handle_detail_query(main_cmd, sub_parts)
+    else:
+        pass
 
 def _handle_detail_query(main_cmd, sub_parts):
     try:
