@@ -36,7 +36,10 @@ async def lifespan(application: FastAPI):
         for plugin_name in _config_data["main"]["plugins"]:
             # 初始化插件
             try:
-                plugin = importlib.import_module("plugins." + plugin_name)
+                try:
+                    plugin = importlib.import_module(plugin_name)
+                except ImportError:
+                    plugin = importlib.import_module("plugins." + plugin_name) # 尝试从plugins目录中加载插件
                 loaded_plugins[plugin_name] = plugin
                 plugin_meta = getattr(plugin, '__plugin_meta__', {})
                 events = plugin_meta.get('events', [])
@@ -56,9 +59,10 @@ async def lifespan(application: FastAPI):
         log.info("事件订阅: %s", event_subscriptions)
         yield
         log.info("CodeFeatrue-破晓之码 正在退出")
-    except (CancelledError, KeyboardInterrupt) as e:
-        log.error("CodeFeatrue-破晓之码 启动失败: 在启动过程中被用户手动关闭。%s", e)
-        raise
+    except (CancelledError, KeyboardInterrupt):
+        log.error("CodeFeatrue-破晓之码 启动失败: 在启动过程中被用户手动关闭。")
+    except ImportError as e:
+        log.error("CodeFeatrue-破晓之码 启动失败: %s", e)
 
 app = FastAPI(lifespan=lifespan)
 
