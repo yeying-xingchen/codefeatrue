@@ -2,10 +2,10 @@
 
 import logging
 import re
-import requests
-from bs4 import BeautifulSoup
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
+import requests
+from bs4 import BeautifulSoup
 
 log = logging.getLogger("uvicorn")
 
