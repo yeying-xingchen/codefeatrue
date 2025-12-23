@@ -43,5 +43,4 @@ def on_event(_event_type: str, info: dict):
                 f"群号 {group_id}"
             )
             return {"reply": reply}
-    else:
-        pass
+    return None

@@ -3,11 +3,11 @@
 from datetime import datetime
 import requests
 import yaml
-import config
+from .. import config
 
 __plugin_meta__  = {
-    "name": "Github 信息监控",
-    "description": "Github 信息监控",
+    "name": "Oseddl 信息获取",
+    "description": "通过机器人，查看活动信息。",
     "author": "yeying-xingchen",
     "version": "0.0.1",
     "events": ["message"]  # 添加需要订阅的事件
@@ -112,8 +112,7 @@ def on_event(_event_type: str, info: dict):
             return {"reply": f"无效的命令，请使用以下有效命令：{', '.join(VALID_COMMANDS)}"}
 
         return _handle_detail_query(main_cmd, sub_parts)
-    else:
-        pass
+    return None
 
 def _handle_detail_query(main_cmd, sub_parts):
     try:
@@ -134,4 +133,4 @@ def _handle_detail_query(main_cmd, sub_parts):
         return {"reply": list_msg}
 
     except RuntimeError as e:
-        return {"reply": str(e)}
+        return {"reply": "遇到未知错误："+str(e)}

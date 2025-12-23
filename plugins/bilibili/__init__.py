@@ -5,8 +5,8 @@ import json
 import requests
 
 __plugin_meta__  = {
-    "name": "Github 信息监控",
-    "description": "Github 信息监控",
+    "name": "BiliBili解析",
+    "description": "解析Bilibili分享卡片",
     "author": "yeying-xingchen",
     "version": "0.0.1",
     "events": ["message"]  # 添加需要订阅的事件
@@ -46,5 +46,4 @@ BV号：{bv}
                 return {"reply": message}
         except (KeyError, json.JSONDecodeError) as e:
             return {"reply": "error:" + str(e)}
-
-    return {}
+    return None
