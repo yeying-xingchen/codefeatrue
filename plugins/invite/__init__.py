@@ -20,7 +20,7 @@ def on_invite(_message_type: str, info: dict):
     :type info: dict
     """
     if info["request_type"] == "group":
-        return { "approve" : True } 
+        return { "approve" : True }
     if info["request_type"] == "friend":
         with open("/data/user.json", "r", encoding="utf-8") as f:
             user_list = json.load(f)

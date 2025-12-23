@@ -144,7 +144,7 @@ def _ensure_data_loaded():
     """确保食堂数据已加载"""
     # 使用 manager 获取数据，不再需要 global
     global _CANTEEN_DATA
-    _CANTEEN_DATA = _canteen_manager.get_data()
+    _CANTEEN_DATA[:] = _canteen_manager.get_data()  # 使用切片赋值来更新全局变量
 
 
 def _parse_time(time_str: str) -> Optional[datetime.time]:
@@ -235,8 +235,7 @@ def _format_canteen_detail(target: Dict) -> str:
 
 def on_enable(_app):
     """插件启用时调用（可选初始化）"""
-    # 初始化逻辑
-    pass
+    # 可以添加实际初始化逻辑
 
 
 def on_event(_event_type: str, info: dict):
@@ -261,6 +260,7 @@ def on_event(_event_type: str, info: dict):
 
         reply = "华科食堂列表 \n发送 /hust-eat 序号/名称 \n 查看具体信息\n" + "\n".join(lines)
         return {"reply": reply}
+
     # 具体信息
     query = parts[1].strip()
     target = None
