@@ -131,6 +131,7 @@ class CanteenDataManager:
                     {"name": "数据加载失败", "position": "请稍后再试或联系管理员"}
                 ]
         return self._data
+
     def clear_cache(self) -> None:
         """清空缓存数据"""
         self._data = []
@@ -142,9 +143,9 @@ _canteen_manager = CanteenDataManager()
 
 def _ensure_data_loaded():
     """确保食堂数据已加载"""
-    # 使用 manager 获取数据，不再需要 global
+    # 直接从管理器获取数据，避免使用global
     global _CANTEEN_DATA
-    _CANTEEN_DATA[:] = _canteen_manager.get_data()  # 使用切片赋值来更新全局变量
+    _CANTEEN_DATA = _canteen_manager.get_data()
 
 
 def _parse_time(time_str: str) -> Optional[datetime.time]:
