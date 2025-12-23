@@ -3,7 +3,7 @@
 from datetime import datetime
 import requests
 import yaml
-import config
+from .. import config
 
 __plugin_meta__  = {
     "name": "Oseddl 信息获取",
@@ -112,8 +112,7 @@ def on_event(_event_type: str, info: dict):
             return {"reply": f"无效的命令，请使用以下有效命令：{', '.join(VALID_COMMANDS)}"}
 
         return _handle_detail_query(main_cmd, sub_parts)
-    else:
-        pass
+    return {"reply": None}  # 修复：统一返回格式，保持一致性
 
 def _handle_detail_query(main_cmd, sub_parts):
     try:
@@ -134,4 +133,4 @@ def _handle_detail_query(main_cmd, sub_parts):
         return {"reply": list_msg}
 
     except RuntimeError as e:
-        return {"reply": str(e)}
+        return {"reply": "遇到未知错误："+str(e)}

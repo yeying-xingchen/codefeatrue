@@ -1,4 +1,4 @@
-"""华中科技大学食堂信息插件（支持两级菜单）"""
+"""华中科大食堂信息插件"""
 
 import logging
 import re
@@ -16,8 +16,8 @@ _CACHE_EXPIRE_SECONDS = 3600  # 缓存1小时
 
 __plugin_meta__ = {
     "name": "HUST 食堂信息",
-    "description": "查询华中科技大学各食堂的地址、营业时间与联系方式（支持两级菜单）",
-    "author": "your-name",
+    "description": "查询华中科技大学各食堂营业时间等。",
+    "author": "yeying-xingchen",
     "version": "0.2.0",
     "events": ["message"]  # 只监听消息事件
 }
@@ -131,6 +131,11 @@ class CanteenDataManager:
                     {"name": "数据加载失败", "position": "请稍后再试或联系管理员"}
                 ]
         return self._data
+    def clear_cache(self) -> None:
+        """清空缓存数据"""
+        self._data = []
+        self._last_fetch_time = 0.0
+
 
 # 实例化管理器
 _canteen_manager = CanteenDataManager()
@@ -138,7 +143,8 @@ _canteen_manager = CanteenDataManager()
 def _ensure_data_loaded():
     """确保食堂数据已加载"""
     # 使用 manager 获取数据，不再需要 global
-    _canteen_manager.get_data()
+    global _CANTEEN_DATA
+    _CANTEEN_DATA = _canteen_manager.get_data()
 
 
 def _parse_time(time_str: str) -> Optional[datetime.time]:
@@ -201,8 +207,35 @@ def _format_remaining_time(delta: Optional[timedelta]) -> str:
         return f"还能吃 {minutes} 分钟"
 
 
+def _format_canteen_detail(target: Dict) -> str:
+    """格式化食堂详细信息"""
+    name = target.get('name')
+    pos = target.get('position')
+    contact = target.get('contact')
+
+    def fmt_time(t):
+        if t:
+            return f"{t['begin']} - {t['end']}"
+        return "未提供"
+
+    bf = fmt_time(target.get('breakfast'))
+    ln = fmt_time(target.get('lunch'))
+    dn = fmt_time(target.get('dinner'))
+
+    detail = (
+        f"【{name}】\n"
+        f"📍 地址：{pos}\n"
+        f"🍳 早餐：{bf}\n"
+        f"🍲 午餐：{ln}\n"
+        f"🍛 晚餐：{dn}"
+        + (f"\n📞 电话：{contact}" if contact else "")
+    )
+    return detail
+
+
 def on_enable(_app):
     """插件启用时调用（可选初始化）"""
+    # 初始化逻辑
     pass
 
 
@@ -212,65 +245,42 @@ def on_event(_event_type: str, info: dict):
     """
     raw = info.get("raw_message", "").strip()
     if not raw.startswith("/hust-eat"):
-        return  # 不处理其他命令
+        return {"reply": None}  # 不处理其他命令，保持一致的返回格式
 
     _ensure_data_loaded()
 
     parts = raw.split(maxsplit=1)
     if len(parts) == 1:
-        # 一级菜单：只显示食堂名称 + 还能吃多久
+        # 只显示食堂名称 + 还能吃多久
         now = datetime.now()
         lines = []
         for idx, c in enumerate(_CANTEEN_DATA, start=1):
-            name = c.get('name').replace('食堂', '')or f"食堂{idx}"
+            name = c.get('name').replace('食堂', '') or f"食堂{idx}"
             remaining = _format_remaining_time(_get_next_meal_end(c, now))
             lines.append(f"{idx}. {name} —— {remaining}")
 
         reply = "华科食堂列表 \n发送 /hust-eat 序号/名称 \n 查看具体信息\n" + "\n".join(lines)
         return {"reply": reply}
+    # 具体信息
+    query = parts[1].strip()
+    target = None
 
+    # 尝试按序号匹配
+    if query.isdigit():
+        idx = int(query)
+        if 1 <= idx <= len(_CANTEEN_DATA):
+            target = _CANTEEN_DATA[idx - 1]
     else:
-        # 二级菜单：显示具体信息
-        query = parts[1].strip()
-        target = None
+        # 按名称模糊匹配（忽略空格和大小写）
+        query_norm = query.lower().replace(" ", "")
+        for c in _CANTEEN_DATA:
+            name_norm = (c.get('name') or "").lower().replace(" ", "")
+            if query_norm in name_norm or name_norm in query_norm:
+                target = c
+                break
 
-        # 尝试按序号匹配
-        if query.isdigit():
-            idx = int(query)
-            if 1 <= idx <= len(_CANTEEN_DATA):
-                target = _CANTEEN_DATA[idx - 1]
-        else:
-            # 按名称模糊匹配（忽略空格和大小写）
-            query_norm = query.lower().replace(" ", "")
-            for c in _CANTEEN_DATA:
-                name_norm = (c.get('name') or "").lower().replace(" ", "")
-                if query_norm in name_norm or name_norm in query_norm:
-                    target = c
-                    break
+    if not target:
+        return {"reply": "没有这个食堂"}
 
-        if not target:
-            return {"reply": "没有这个食堂"}
-
-        name = target.get('name')
-        pos = target.get('position')
-        contact = target.get('contact')
-
-        def fmt_time(t):
-            if t:
-                return f"{t['begin']} - {t['end']}"
-            return "未提供"
-
-        bf = fmt_time(target.get('breakfast'))
-        ln = fmt_time(target.get('lunch'))
-        dn = fmt_time(target.get('dinner'))
-
-        detail = (
-            f"【{name}】\n"
-            f"📍 地址：{pos}\n"
-            f"🍳 早餐：{bf}\n"
-            f"🍲 午餐：{ln}\n"
-            f"🍛 晚餐：{dn}"
-            + (f"\n📞 电话：{contact}" if contact else "")
-        )
-
-        return {"reply": detail}
+    detail = _format_canteen_detail(target)
+    return {"reply": detail}
