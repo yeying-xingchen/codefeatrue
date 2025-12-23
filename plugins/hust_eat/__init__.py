@@ -15,7 +15,7 @@ __plugin_meta__ = {
     "events": ["message"]  # 只监听消息事件
 }
 
-canteen_manager = CanteenDataManager()
+canteen_data = CanteenDataManager().get_data()
 
 def on_enable(_app):
     """插件启用时调用（可选初始化）"""
@@ -30,9 +30,6 @@ def on_event(_event_type: str, info: dict):
     if not raw.startswith("/hust-eat"):
         return None
 
-    # 从管理器获取数据
-    canteen_data = canteen_manager.get_data()
-
     parts = raw.split(maxsplit=1)
     if len(parts) == 1:
         # 只显示食堂名称 + 还能吃多久
@@ -43,7 +40,7 @@ def on_event(_event_type: str, info: dict):
             remaining = format_remaining_time(get_next_meal_end(c, now))
             lines.append(f"{idx}. {name} —— {remaining}")
 
-        reply = "华科食堂列表 \n发送 /hust-eat 序号/名称 \n 查看具体信息\n" + "\n".join(lines)
+        reply = "华科食堂列表 \n发送 /hust-eat 序号 \n 查看具体信息\n" + "\n".join(lines)
         return {"reply": reply}
 
     # 具体信息
@@ -56,15 +53,6 @@ def on_event(_event_type: str, info: dict):
         if 1 <= idx <= len(canteen_data):
             target = canteen_data[idx - 1]
     else:
-        # 按名称模糊匹配（忽略空格和大小写）
-        query_norm = query.lower().replace(" ", "")
-        for c in canteen_data:
-            name_norm = (c.get('name') or "").lower().replace(" ", "")
-            if query_norm in name_norm or name_norm in query_norm:
-                target = c
-                break
-
-    if not target:
         return {"reply": "没有这个食堂"}
 
     detail = format_canteen_detail(target)
