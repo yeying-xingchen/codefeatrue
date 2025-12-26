@@ -33,9 +33,9 @@ def on_event(_event_type: str, info: dict):
     raw = info.get("raw_message", "")
     raw_message = raw.strip()
     parts = raw_message.split()
-    if parts[0] == "/hust_mirrror":
-        sub_command = raw[len("/hust_mirror "):]
-        if sub_command.startswith("status "):
+    if parts[0] == "/hust_mirror":
+        sub_command = raw[len("/hust-mirror "):]
+        if sub_command.startswith("status"):
             try:
                 resp = requests.get("https://mirrors.hust.edu.cn/status.json", timeout=10)
                 resp_info = resp.json()

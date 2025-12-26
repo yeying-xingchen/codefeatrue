@@ -1,5 +1,5 @@
 [ main ]
-plugins = [ "bilibili", "github" ,"oseddl", "invite", "hust_eat" ]
+plugins = [ "bilibili", "github" ,"oseddl", "invite", "hust_eat", "hust_mirror" ]
 
 # 供插件使用的配置
 [ oseddl ]
