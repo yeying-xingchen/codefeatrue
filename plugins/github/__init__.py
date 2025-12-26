@@ -9,7 +9,7 @@ __plugin_meta__  = {
     "description": "Github 信息监控",
     "author": "yeying-xingchen",
     "version": "0.0.1",
-    "events": ["message", "request"]  # 添加需要订阅的事件
+    "events": ["message"]  # 添加需要订阅的事件
 }
 
 def on_enable(_app):
