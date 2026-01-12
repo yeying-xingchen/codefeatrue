@@ -1,5 +1,6 @@
 [ main ]
 plugins = [ "bilibili", "github" ,"oseddl", "invite", "hust_eat", "hust_mirror" ]
+adapter = "onebot11"
 
 # 供插件使用的配置
 [ oseddl ]

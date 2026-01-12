@@ -74,15 +74,23 @@ def main(info: dict):
     :param info: Onebot实现端传入的信息
     :type info: dict
     """
-    post_type = info["post_type"]
-    # 通知订阅了该事件的所有插件
-    event_subscriptions = app.state.event_subscriptions
-    if post_type in event_subscriptions:
-        for plugin_name in event_subscriptions[post_type]:
-            plugin = loaded_plugins.get(plugin_name)
-            if plugin and hasattr(plugin, 'on_event'):
-                return_info = plugin.on_event(post_type, info)
-                if return_info:
-                    return return_info
-                log.info("插件 %s 未处理事件 %s", plugin_name, post_type)
-    return { }
+    if _config_data["main"]["adapter"] == "onebot11":
+        post_type = info["post_type"]
+        # 通知订阅了该事件的所有插件
+        event_subscriptions = app.state.event_subscriptions
+        if post_type in event_subscriptions:
+            for plugin_name in event_subscriptions[post_type]:
+                plugin = loaded_plugins.get(plugin_name)
+                if plugin and hasattr(plugin, 'on_event'):
+                    return_info = plugin.on_event(post_type, info)
+                    if return_info:
+                        return return_info
+                    log.info("插件 %s 未处理事件 %s", plugin_name, post_type)
+        return { }
+    if _config_data["main"]["adapter"] == "satori":
+        return { }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=_config_data["main"]["port"])

@@ -11,7 +11,7 @@ CodeFeatrue 是一个基于Python 开发的帮助开发的聊天机器人。他�
 执行以下命令，安装必要依赖：
 
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
 ### 填写配置文件
@@ -23,7 +23,7 @@ pip install -r requirements.txt
 执行以下命令，启动机器人：
 
 ```bash
-uvicorn __init__:app --port 8000 --host 0.0.0.0
+uv run uvicorn main:app --port 8000 --host 0.0.0.0
 ```
 
 您可以修改 '--port' 后面的数字设置端口。
