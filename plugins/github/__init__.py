@@ -2,7 +2,12 @@ import asyncio
 import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
-import aiohttp  # 需要安装: pip install aiohttp
+import aiohttp
+import threading
+import tomllib
+import json
+from pathlib import Path
+from .. import send_group_msg  # 导入通用消息发送函数
 
 log = logging.getLogger("uvicorn")
 
@@ -15,10 +20,6 @@ __plugin_meta__ = {
     "events": ["message"]  # 添加需要订阅的事件
 }
 
-# --- 全局变量和状态存储 ---
-# 这里使用一个简单的字典来模拟状态存储，实际生产环境建议使用数据库
-# 结构: { "group_id": { "repo_url": { "last_stars": int, "last_issues": list_of_dicts, ... } } }
-# 也可以考虑使用文件 (pickle/json) 或数据库 (sqlite/mysql)
 repo_status_storage: Dict[str, Dict[str, Dict]] = {}
 
 # 存储每个仓库的轮询任务
@@ -27,7 +28,108 @@ polling_tasks: Dict[str, asyncio.Task] = {}
 # 用于控制轮询频率的锁
 poll_locks: Dict[str, asyncio.Lock] = {}
 
-# --- 辅助函数 ---
+# 轮询间隔（秒）- 默认5分钟
+DEFAULT_POLL_INTERVAL = 1 * 10
+
+CONFIG_FILE_PATH = Path("config.toml")
+
+def load_config():
+    """从 config.toml 加载 GitHub 监控配置"""
+    try:
+        with open(CONFIG_FILE_PATH, "rb") as f:
+            return tomllib.load(f)
+    except FileNotFoundError:
+        log.warning(f"配置文件 {CONFIG_FILE_PATH} 不存在，使用默认配置")
+        return {"github": {}}
+    except tomllib.TOMLDecodeError as e:
+        log.error(f"配置文件 {CONFIG_FILE_PATH} 格式错误: {e}")
+        return {"github": {}}
+
+def save_storage_to_config():
+    """将当前存储状态保存到配置文件"""
+    # 读取现有配置
+    try:
+        with open(CONFIG_FILE_PATH, "r", encoding="utf-8") as f:
+            content = f.read()
+    except FileNotFoundError:
+        content = ""
+    
+    # 解析现有配置
+    if content.strip():
+        try:
+            existing_config = tomllib.loads(content)
+        except tomllib.TOMLDecodeError:
+            existing_config = {}
+    else:
+        existing_config = {}
+    
+    # 更新 GitHub 监控数据
+    github_section = existing_config.get("github", {})
+    github_section["monitoring_data"] = repo_status_storage
+    existing_config["github"] = github_section
+    
+    # 重新构建 TOML 内容
+    toml_content = _generate_toml_string(existing_config)
+    
+    # 写回配置文件
+    with open(CONFIG_FILE_PATH, "w", encoding="utf-8") as f:
+        f.write(toml_content)
+    
+    return True
+
+def _generate_toml_string(data, indent_level=0):
+    """将 Python 字典转换为 TOML 格式的字符串"""
+    toml_lines = []
+    indent = "  " * indent_level
+    
+    for key, value in data.items():
+        if isinstance(value, dict):
+            # 如果值是字典，处理嵌套表
+            if indent_level == 0:
+                toml_lines.append(f"[{key}]")
+                toml_lines.extend(_generate_toml_string(value, indent_level + 1).splitlines()[1:])
+            else:
+                toml_lines.append(f"{indent}[[{key}]]")
+                toml_lines.extend(_generate_toml_string(value, indent_level + 1).splitlines()[1:])
+        elif isinstance(value, list):
+            # 如果值是列表，处理数组
+            if value and isinstance(value[0], dict):
+                # 列表元素是字典，按内联表格式处理
+                toml_lines.append(f'{indent}{key} = [')
+                for i, item in enumerate(value):
+                    if isinstance(item, dict):
+                        inline_table = ", ".join([
+                            f'{k} = {json.dumps(v) if isinstance(v, (list, dict)) else f"\"{v}\"" if isinstance(v, str) else v}'
+                            for k, v in item.items()
+                        ])
+                        toml_lines.append(f"  {indent}{{ {inline_table} }}" + ("," if i < len(value) - 1 else ""))
+                    else:
+                        toml_lines.append(f"  {indent}{json.dumps(item)}" + ("," if i < len(value) - 1 else ""))
+                toml_lines.append(f"{indent}]")
+            else:
+                # 简单值列表
+                formatted_values = [
+                    f'"{v}"' if isinstance(v, str) else str(v) for v in value
+                ]
+                toml_lines.append(f'{indent}{key} = [{", ".join(formatted_values)}]')
+        elif isinstance(value, str):
+            toml_lines.append(f'{indent}{key} = "{value}"')
+        elif isinstance(value, bool):
+            toml_lines.append(f'{indent}{key} = {str(value).lower()}')
+        elif isinstance(value, int) or isinstance(value, float):
+            toml_lines.append(f'{indent}{key} = {value}')
+        elif value is None:
+            toml_lines.append(f'{indent}{key} = ""')  # TOML 中没有 null，用空字符串代替
+    
+    return "\n".join(toml_lines)
+
+def initialize_storage_from_config():
+    """从配置文件初始化存储状态"""
+    global repo_status_storage
+    config = load_config()
+    github_config = config.get("github", {})
+    monitoring_data = github_config.get("monitoring_data", {})
+    repo_status_storage = monitoring_data
 
 def get_repo_key(owner: str, name: str) -> str:
     """生成仓库的唯一标识键"""
@@ -66,6 +168,7 @@ async def poll_repository(group_id: str, repo_owner: str, repo_name: str, token:
             repo_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}"
             repo_info = await fetch_github_data(session, repo_url, headers)
             if not repo_info:
+                log.error(f"无法获取仓库信息: {repo_key}")
                 return
 
             current_stars = repo_info.get('stargazers_count', 0)
@@ -95,6 +198,8 @@ async def poll_repository(group_id: str, repo_owner: str, repo_name: str, token:
                     "last_prs": current_prs,
                     "last_commits": current_commits,
                 }
+                # 保存到配置文件
+                save_storage_to_config()
                 log.info(f"首次记录仓库 {repo_key} 的初始状态。")
                 return # 首次记录，不发送通知
 
@@ -146,18 +251,20 @@ async def poll_repository(group_id: str, repo_owner: str, repo_name: str, token:
             if notifications:
                 # 构造要发送的消息
                 full_notification = f"【GitHub 监控】{repo_key}\n" + "\n".join(notifications)
-                # 这里需要调用实际的机器人发送消息的 API
-                # 例如: await bot.send_group_msg(group_id=int(group_id), message=full_notification)
-                # 由于我们不知道具体的机器人实例名，暂时打印日志
-                log.info(f"[SIMULATED SEND] 发送给群组 {group_id}: \n{full_notification}")
-                # --- 实际实现中替换上面的日志为下面的代码 ---
-                # try:
-                #     await _app.bot.send_group_msg(group_id=int(group_id), message=full_notification)
-                # except Exception as e:
-                #     log.error(f"发送消息到群组 {group_id} 失败: {e}")
+                
+                try:
+                    # 使用通用的消息发送接口发送消息到群组
+                    await send_group_msg(group_id=int(group_id), message=full_notification)
+                    log.info(f"成功发送通知到群组 {group_id}")
+                except Exception as e:
+                    log.error(f"发送消息到群组 {group_id} 失败: {e}")
+                    
+            # 如果有变化，保存到配置文件
+            if notifications:
+                save_storage_to_config()
 
 
-async def start_polling(group_id: str, repo_owner: str, repo_name: str, token: Optional[str] = None):
+def start_polling(group_id: str, repo_owner: str, repo_name: str, token: Optional[str] = None):
     """启动对特定仓库的轮询任务"""
     task_key = f"{group_id}:{get_repo_key(repo_owner, repo_name)}"
     if task_key in polling_tasks and not polling_tasks[task_key].done():
@@ -173,10 +280,29 @@ async def start_polling(group_id: str, repo_owner: str, repo_name: str, token: O
                 break
             except Exception as e:
                 log.error(f"轮询任务 {task_key} 出现未处理异常: {e}")
-            # 等待 5 分钟后再次检查 (可以根据需要调整)
-            await asyncio.sleep(5 * 60)
+                # 避免因为异常导致任务退出，等待一段时间后重试
+                await asyncio.sleep(DEFAULT_POLL_INTERVAL)
+            # 等待设定的时间后再次检查
+            await asyncio.sleep(DEFAULT_POLL_INTERVAL)
 
-    task = asyncio.create_task(run_task())
+    # 确保在正确的事件循环中运行
+    try:
+        loop = asyncio.get_running_loop()
+        task = loop.create_task(run_task())
+    except RuntimeError:
+        # 如果没有运行的事件循环，则创建一个新任务并等待它
+        async def run_in_new_loop():
+            task = asyncio.create_task(run_task())
+            polling_tasks[task_key] = task
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        # 在新线程中运行事件循环
+        thread = threading.Thread(target=lambda: asyncio.run(run_in_new_loop()), daemon=True)
+        thread.start()
+        return
+
     polling_tasks[task_key] = task
     log.info(f"已为群组 {group_id} 启动对仓库 {get_repo_key(repo_owner, repo_name)} 的轮询任务。")
 
@@ -193,6 +319,8 @@ def stop_polling(group_id: str, repo_owner: str, repo_name: str):
         storage_key = f"{group_id}:{get_repo_key(repo_owner, repo_name)}"
         if storage_key in repo_status_storage:
             del repo_status_storage[storage_key]
+            # 保存更改到配置文件
+            save_storage_to_config()
         return True
     return False
 
@@ -205,7 +333,12 @@ def on_enable(app):
     """
     global _app
     _app = app # 存储 app 实例以便后续使用 (例如发送消息)
+    # 从配置文件初始化存储状态
+    initialize_storage_from_config()
     log.info("Github 信息监控插件已启用。")
+
+# 创建全局事件循环用于启动任务
+loop = None
 
 def on_event(event_type: str, info: dict):
     """
@@ -215,6 +348,7 @@ def on_event(event_type: str, info: dict):
     :param info: 事件信息
     :type info: dict
     """
+    global loop
     # 这里假设事件信息包含 'message_type' 和 'raw_message' 等字段
     # 请根据你实际使用的机器人框架调整字段名
     message_type = info.get("message_type") 
@@ -260,9 +394,19 @@ def on_event(event_type: str, info: dict):
         # 尝试获取 token (如果有提供)
         token = sub_parts[2] if len(sub_parts) > 2 else None 
 
+        # 确保事件循环可用
+        try:
+            # 获取当前事件循环
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            # 如果没有运行的事件循环，则创建一个新的
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
         # 启动轮询
         try:
-            asyncio.create_task(start_polling(str(group_id), owner, name, token))
+            # 直接调用 start_polling，它现在是同步函数
+            start_polling(str(group_id), owner, name, token)
         except Exception as e:
             log.error(f"启动轮询任务失败: {e}")
             return {"reply": "启动监控任务失败，请查看后台日志。"}
@@ -304,4 +448,3 @@ def on_event(event_type: str, info: dict):
         return {"reply": f"未知子命令: {command}。请输入 '/github' 查看帮助。"}
 
     return None
-
