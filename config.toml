@@ -1,6 +1,10 @@
 [ main ]
 plugins = [ "bilibili", "github" ,"oseddl", "invite", "hust_eat", "hust_mirror" ]
-adapter = "onebot11"
+adapter = "lark"
+
+[adapter]
+app_id = "cli_a9f32aec7c39dbdc"
+app_secret = "nmDh4qmzpXz45sbSoWd9WeUkBYMEx6uF"
 
 # 供插件使用的配置
 [ oseddl ]

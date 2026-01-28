@@ -17,10 +17,6 @@ __plugin_meta__ = {
 
 canteen_data = CanteenDataManager().get_data()
 
-def on_enable(_app):
-    """插件启用时调用（可选初始化）"""
-    # 可以添加实际初始化逻辑
-
 
 def on_event(_event_type: str, info: dict):
     """
